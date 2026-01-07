@@ -1,0 +1,10 @@
+streamlit
+langchain-groq
+langgraph
+langchain-community
+chromadb
+pypdf
+langchain-huggingface
+sentence-transformers
+tavily-python
+pydantic>=2.0
