@@ -19,12 +19,25 @@ st.set_page_config(page_title="Dani Tech Agentic RAG", page_icon="🤖", layout=
 st.markdown(
     """
     <style>
-    /* Force main text visibility */
+    /* 1. FORCE DARK BACKGROUND FOR THE WHOLE APP */
+    .stApp {
+        background-color: #0E1117;
+    }
+
+    /* 2. FORCE MAIN TEXT AND HEADERS TO BE VISIBLE WHITE */
     .main .block-container h1, .main .block-container h2, .main .block-container h3, 
     .main .block-container p, .main .block-container span, .stMarkdown {
         color: #FFFFFF !important;
     }
-    /* Circular Logo Style */
+
+    /* 3. FIX CHAT INPUT ACCESSIBILITY (Darker box so white text shows) */
+    [data-testid="stChatInput"] textarea {
+        background-color: #262730 !important;
+        color: white !important;
+        border: 1px solid #00d4ff !important;
+    }
+
+    /* 4. CIRCULAR LOGO STYLE */
     [data-testid="stSidebar"] [data-testid="stImage"] img {
         border-radius: 50%;
         width: 180px !important;
@@ -34,7 +47,16 @@ st.markdown(
         display: block;
         border: 3px solid #00d4ff;
     }
-    .brand-name { text-align: center; font-size: 24px; font-weight: bold; color: #00d4ff !important; margin-top: 10px; font-family: 'Courier New', monospace; }
+
+    .brand-name { 
+        text-align: center; 
+        font-size: 24px; 
+        font-weight: bold; 
+        color: #00d4ff !important; 
+        margin-top: 10px; 
+        font-family: 'Courier New', monospace; 
+    }
+
     .side-footer { position: fixed; bottom: 20px; left: 20px; font-size: 12px; color: #888; }
     </style>
     """,
@@ -56,7 +78,6 @@ if "messages" not in st.session_state: st.session_state.messages = []
 with st.sidebar:
     st.image("Dani_Logo.png")
     st.markdown("<div class='brand-name'>DANI TECH</div>", unsafe_allow_html=True)
-    st.divider()
 
     # API Keys
     groq_key = st.secrets.get("GROQ_API_KEY") or st.text_input("Groq API Key", type="password")
@@ -175,3 +196,4 @@ if groq_key and tavily_key:
             st.session_state.messages.append({"role": "assistant", "content": final_state["generation"]})
 else:
     st.warning("Please provide API Keys in the sidebar to begin.")
+
