@@ -1,7 +1,6 @@
 import streamlit as st
 import os
 from typing import List, TypedDict, Literal
-from pydantic import BaseModel, Field
 
 # LangChain / LangGraph Imports
 from langchain_groq import ChatGroq
@@ -39,11 +38,11 @@ if not groq_key or not tavily_key:
         if not tavily_key:
             tavily_key = st.text_input("Tavily API Key", type="password")
 
-# --- SIDEBAR: KNOWLEDGE BASE & ARCHITECTURE ---
+# --- SIDEBAR: KNOWLEDGE BASE ---
 with st.sidebar:
     st.divider()
     st.header("📄 Knowledge Base")
-    uploaded_file = st.file_uploader("Upload a PDF for the Agent to study", type="pdf")
+    uploaded_file = st.file_uploader("Upload a PDF (e.g., Tesla Impact Report)", type="pdf")
     
     if st.button("Clear Chat History"):
         st.session_state.messages = []
@@ -56,6 +55,7 @@ if groq_key and tavily_key:
     os.environ["GROQ_API_KEY"] = groq_key
     os.environ["TAVILY_API_KEY"] = tavily_key
     
+    # Using Llama 3 70B for high-quality reasoning
     llm = ChatGroq(model="llama3-70b-8192", temperature=0)
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
@@ -72,7 +72,7 @@ if groq_key and tavily_key:
             st.session_state.retriever = vectorstore.as_retriever()
             st.success("Indexing Complete!")
 
-    # --- AGENT DEFINITIONS ---
+    # --- AGENT STATE & UTILS ---
     class GraphState(TypedDict):
         question: str
         generation: str
@@ -80,14 +80,10 @@ if groq_key and tavily_key:
         search_needed: str
         retry_count: int
 
-    class GradeRelevance(BaseModel):
-        binary_score: str = Field(description="Relevance score 'yes' or 'no'")
-
-    class GradeHallucination(BaseModel):
-        binary_score: str = Field(description="Grounded in facts 'yes' or 'no'")
-
-    relevance_grader = llm.with_structured_output(GradeRelevance)
-    hallucination_grader = llm.with_structured_output(GradeHallucination)
+    def get_binary_score(text: str) -> str:
+        """Standardizes LLM output to yes/no."""
+        cleaned = text.lower().strip()
+        return "yes" if "yes" in cleaned else "no"
 
     # --- NODE FUNCTIONS ---
     def retrieve(state):
@@ -101,8 +97,11 @@ if groq_key and tavily_key:
         question = state["question"]
         docs = state["documents"]
         if not docs: return {"search_needed": "yes", "documents": docs}
-        score = relevance_grader.invoke(f"Question: {question} \nDoc: {docs[0]}")
-        return {"search_needed": "no" if score.binary_score.lower() == "yes" else "yes", "documents": docs}
+        
+        grade_prompt = f"Is this document relevant to the question: '{question}'? Context: {docs[0]}. Answer only 'yes' or 'no'."
+        response = llm.invoke(grade_prompt)
+        score = get_binary_score(response.content)
+        return {"search_needed": "no" if score == "yes" else "yes", "documents": docs}
 
     def web_search(state):
         search_tool = TavilySearchResults(k=3)
@@ -112,12 +111,11 @@ if groq_key and tavily_key:
 
     def generate(state):
         source = "PDF Document" if state["search_needed"] == "no" else "Live Web Research"
-        prompt = f"""Context: {state['documents']} 
-        Question: {state['question']} 
-        Answer accurately based on context. 
-        End with 'SOURCES: {source}'"""
+        prompt = f"Facts: {state['documents']} \nQuestion: {state['question']} \nAnswer accurately. End with 'SOURCES: {source}'"
         response = llm.invoke(prompt)
-        return {"generation": response.content, "retry_count": state.get("retry_count", 0) + 1}
+        # Ensure retry_count exists
+        current_retry = state.get("retry_count", 0)
+        return {"generation": response.content, "retry_count": current_retry + 1}
 
     # --- GRAPH SETUP ---
     workflow = StateGraph(GraphState)
@@ -132,8 +130,10 @@ if groq_key and tavily_key:
     workflow.add_edge("web_search", "generate")
     
     def check_hallucination(state):
-        score = hallucination_grader.invoke(f"Facts: {state['documents']} \nAnswer: {state['generation']}")
-        if score.binary_score.lower() == "yes" or state["retry_count"] > 1:
+        hallucination_prompt = f"Is this answer supported by these facts? Facts: {state['documents']} \nAnswer: {state['generation']}. Answer only 'yes' or 'no'."
+        response = llm.invoke(hallucination_prompt)
+        score = get_binary_score(response.content)
+        if score == "yes" or state.get("retry_count", 0) > 1:
             return "finish"
         return "retry"
 
@@ -155,7 +155,6 @@ if groq_key and tavily_key:
         with st.chat_message("assistant"):
             with st.status("Agent Reasoning...", expanded=True) as status:
                 final_state = {}
-                # Streaming nodes to UI
                 for step in app.stream({"question": prompt}):
                     for node, output in step.items():
                         status.write(f"✅ Completed: **{node}**")
@@ -165,4 +164,4 @@ if groq_key and tavily_key:
             st.markdown(final_state["generation"])
             st.session_state.messages.append({"role": "assistant", "content": final_state["generation"]})
 else:
-    st.warning("Please provide API Keys to begin.")
+    st.warning("Please provide API Keys in the sidebar or App Secrets to begin.")
