@@ -56,7 +56,7 @@ if groq_key and tavily_key:
     os.environ["TAVILY_API_KEY"] = tavily_key
     
     # Using Llama 3 70B for high-quality reasoning
-    llm = ChatGroq(model="llama3-70b-8192", temperature=0)
+    llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
     # --- VECTOR STORE LOGIC ---
@@ -165,3 +165,4 @@ if groq_key and tavily_key:
             st.session_state.messages.append({"role": "assistant", "content": final_state["generation"]})
 else:
     st.warning("Please provide API Keys in the sidebar or App Secrets to begin.")
+
