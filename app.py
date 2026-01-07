@@ -16,14 +16,13 @@ from langchain_huggingface import HuggingFaceEmbeddings
 st.set_page_config(page_title="Agentic RAG Explorer", page_icon="🧠", layout="wide")
 
 st.title("🧠 Agentic Self-Reflecting RAG")
-st.subheader("Corrective RAG with Hallucination Grading")
+st.subheader("Corrective RAG (CRAG) with Hallucination Grading")
 
 # --- SAFE SECRETS LOADER ---
 groq_key = None
 tavily_key = None
 
 try:
-    # Look for Streamlit Cloud Secrets
     if "GROQ_API_KEY" in st.secrets:
         groq_key = st.secrets["GROQ_API_KEY"]
     if "TAVILY_API_KEY" in st.secrets:
@@ -31,7 +30,7 @@ try:
 except Exception:
     pass
 
-# Fallback to Sidebar if Secrets aren't set up yet
+# Fallback to Sidebar if Secrets aren't set
 if not groq_key or not tavily_key:
     with st.sidebar:
         st.header("🔑 Authentication")
@@ -40,7 +39,7 @@ if not groq_key or not tavily_key:
         if not tavily_key:
             tavily_key = st.text_input("Tavily API Key", type="password")
 
-# --- SIDEBAR: KNOWLEDGE BASE ---
+# --- SIDEBAR: KNOWLEDGE BASE & ARCHITECTURE ---
 with st.sidebar:
     st.divider()
     st.header("📄 Knowledge Base")
@@ -48,6 +47,9 @@ with st.sidebar:
     
     if st.button("Clear Chat History"):
         st.session_state.messages = []
+    
+    st.divider()
+    show_graph = st.checkbox("Show Agent Architecture")
 
 # --- INITIALIZE LLM & MODELS ---
 if groq_key and tavily_key:
@@ -59,7 +61,7 @@ if groq_key and tavily_key:
 
     # --- VECTOR STORE LOGIC ---
     if uploaded_file and "retriever" not in st.session_state:
-        with st.status("Indexing Document..."):
+        with st.status("Indexing Document...", expanded=True):
             with open("temp.pdf", "wb") as f:
                 f.write(uploaded_file.getbuffer())
             loader = PyPDFLoader("temp.pdf")
@@ -87,13 +89,13 @@ if groq_key and tavily_key:
     relevance_grader = llm.with_structured_output(GradeRelevance)
     hallucination_grader = llm.with_structured_output(GradeHallucination)
 
-    # --- NODES ---
+    # --- NODE FUNCTIONS ---
     def retrieve(state):
         question = state["question"]
         if "retriever" in st.session_state:
             docs = st.session_state.retriever.invoke(question)
-            return {"documents": [d.page_content for d in docs], "question": question, "retry_count": 0}
-        return {"documents": [], "question": question, "retry_count": 0}
+            return {"documents": [d.page_content for d in docs], "question": question}
+        return {"documents": [], "question": question}
 
     def grade_documents(state):
         question = state["question"]
@@ -109,8 +111,11 @@ if groq_key and tavily_key:
         return {"documents": state["documents"] + [web_content]}
 
     def generate(state):
-        source = "PDF" if state["search_needed"] == "no" else "Web Search"
-        prompt = f"Facts: {state['documents']} \nQuestion: {state['question']} \nEnd with Source: {source}"
+        source = "PDF Document" if state["search_needed"] == "no" else "Live Web Research"
+        prompt = f"""Context: {state['documents']} 
+        Question: {state['question']} 
+        Answer accurately based on context. 
+        End with 'SOURCES: {source}'"""
         response = llm.invoke(prompt)
         return {"generation": response.content, "retry_count": state.get("retry_count", 0) + 1}
 
@@ -120,25 +125,44 @@ if groq_key and tavily_key:
     workflow.add_node("grade_documents", grade_documents)
     workflow.add_node("web_search", web_search)
     workflow.add_node("generate", generate)
+    
     workflow.add_edge(START, "retrieve")
     workflow.add_edge("retrieve", "grade_documents")
     workflow.add_conditional_edges("grade_documents", lambda x: "search" if x["search_needed"] == "yes" else "generate", {"search": "web_search", "generate": "generate"})
     workflow.add_edge("web_search", "generate")
-    workflow.add_conditional_edges("generate", lambda x: "finish" if hallucination_grader.invoke(f"Facts: {x['documents']} \nAnswer: {x['generation']}").binary_score.lower() == "yes" or x["retry_count"] > 1 else "retry", {"finish": END, "retry": "generate"})
+    
+    def check_hallucination(state):
+        score = hallucination_grader.invoke(f"Facts: {state['documents']} \nAnswer: {state['generation']}")
+        if score.binary_score.lower() == "yes" or state["retry_count"] > 1:
+            return "finish"
+        return "retry"
+
+    workflow.add_conditional_edges("generate", check_hallucination, {"finish": END, "retry": "generate"})
     app = workflow.compile()
 
-    # --- CHAT ---
+    if show_graph:
+        with st.sidebar:
+            st.image(app.get_graph().draw_mermaid_png())
+
+    # --- CHAT INTERFACE ---
     if "messages" not in st.session_state: st.session_state.messages = []
     for msg in st.session_state.messages: st.chat_message(msg["role"]).write(msg["content"])
 
-    if prompt := st.chat_input("Ask about the PDF or the world..."):
+    if prompt := st.chat_input("Ask a question..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         st.chat_message("user").write(prompt)
+
         with st.chat_message("assistant"):
-            with st.status("Agent processing...") as status:
-                final_state = app.invoke({"question": prompt})
-                status.update(label="Complete!", state="complete")
+            with st.status("Agent Reasoning...", expanded=True) as status:
+                final_state = {}
+                # Streaming nodes to UI
+                for step in app.stream({"question": prompt}):
+                    for node, output in step.items():
+                        status.write(f"✅ Completed: **{node}**")
+                        final_state.update(output)
+                status.update(label="Analysis Complete!", state="complete", expanded=False)
+            
             st.markdown(final_state["generation"])
             st.session_state.messages.append({"role": "assistant", "content": final_state["generation"]})
 else:
-    st.warning("Please provide API Keys in the sidebar or App Secrets.")
+    st.warning("Please provide API Keys to begin.")
