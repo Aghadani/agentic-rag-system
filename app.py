@@ -60,9 +60,6 @@ st.markdown(
 with st.sidebar:
     # Branding
     st.image("Dani_Logo.png")
-    st.markdown("<div class='brand-name'>DANI TECH</div>", unsafe_allow_html=True)
-    st.markdown("<div class='brand-tagline'>Built by Dani Tech</div>", unsafe_allow_html=True)
-    st.divider()
 
     # Authentication
     st.header("🔑 Authentication")
@@ -207,3 +204,4 @@ if groq_key and tavily_key:
             st.session_state.messages.append({"role": "assistant", "content": final_state["generation"]})
 else:
     st.warning("Please provide API Keys in the sidebar to begin.")
+
