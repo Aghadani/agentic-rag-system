@@ -107,7 +107,7 @@ if groq_key and tavily_key:
             loader = PyPDFLoader("temp.pdf")
             chunks = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=100).split_documents(loader.load())
             st.session_state.retriever = Chroma.from_documents(documents=chunks, embedding=embeddings).as_retriever()
-            status.update(label="✅ Ready for Research!", state="complete")
+            status.update(label="✅ Ready for Queries!", state="complete")
 
     # (Agent State/Nodes/Graph logic remains same as your previous version...)
     class GraphState(TypedDict):
@@ -174,5 +174,6 @@ if groq_key and tavily_key:
             st.session_state.messages.append({"role": "assistant", "content": final_state["generation"]})
 else:
     st.warning("Please provide API Keys in the sidebar to start.")
+
 
 
