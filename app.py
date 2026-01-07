@@ -12,8 +12,13 @@ from langchain_community.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="Agentic RAG Explorer", page_icon="🧠", layout="wide")
-
+st.set_page_config(page_title="Agentic RAG Explorer", page_icon="🤖", layout="wide")
+# --- BRANDING ---
+st.logo(
+    "Dani_Logo.png",
+    link="https://danialzaidi.framer.website/", 
+    icon_image="Dani_Logo.png" 
+)
 st.title("🧠 Agentic Self-Reflecting RAG")
 st.subheader("Corrective RAG (CRAG) with Hallucination Grading")
 
@@ -42,6 +47,23 @@ if not groq_key or not tavily_key:
 with st.sidebar:
     st.divider()
     st.header("📄 Knowledge Base")
+    st.markdown(
+        """
+        <style>
+        .side-footer {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            font-size: 12px;
+            color: #888;
+        }
+        </style>
+        <div class="side-footer">
+            Built by <b>Dani Tech</b> 🛠️
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
     uploaded_file = st.file_uploader("Upload a PDF (e.g., Tesla Impact Report)", type="pdf")
     
     if st.button("Clear Chat History"):
@@ -165,4 +187,5 @@ if groq_key and tavily_key:
             st.session_state.messages.append({"role": "assistant", "content": final_state["generation"]})
 else:
     st.warning("Please provide API Keys in the sidebar or App Secrets to begin.")
+
 
