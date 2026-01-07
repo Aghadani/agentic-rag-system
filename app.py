@@ -59,8 +59,6 @@ if "upload_log" not in st.session_state: st.session_state.upload_log = []
 # 4. --- SIDEBAR UI ---
 with st.sidebar:
     st.image("Dani_Logo.png")
-    st.markdown("<div class='brand-name'>DANI TECH</div>", unsafe_allow_html=True)
-    st.divider()
 
     # Auth
     groq_key = st.secrets.get("GROQ_API_KEY") or st.text_input("Groq API Key", type="password")
@@ -176,3 +174,4 @@ if groq_key and tavily_key:
             st.session_state.messages.append({"role": "assistant", "content": final_state["generation"]})
 else:
     st.warning("Please provide API Keys in the sidebar to start.")
+
