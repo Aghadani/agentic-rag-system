@@ -11,132 +11,114 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 
-# --- PAGE CONFIG ---
-st.set_page_config(page_title="Agentic RAG Explorer", page_icon="🤖", layout="wide")
-# --- BRANDING & CUSTOM CSS ---
-def add_branding():
-    st.markdown(
-        """
-        <style>
-        /* Make the sidebar image large and circular */
-        [data-testid="stSidebar"] [data-testid="stImage"] img {
-            border-radius: 50%;
-            width: 180px !important;  /* Increased size */
-            height: 180px !important; /* Perfect circle */
-            object-fit: cover;
-            margin-left: auto;
-            margin-right: auto;
-            display: block;
-            border: 3px solid #00d4ff; /* Tech-blue border */
-            box-shadow: 0px 4px 15px rgba(0, 212, 255, 0.3);
-        }
-        
-        /* Centered Brand Name */
-        .brand-name {
-            text-align: center;
-            font-size: 24px;
-            font-weight: bold;
-            color: #ffffff;
-            margin-top: 10px;
-            font-family: 'Courier New', Courier, monospace;
-        }
-        
-        .brand-tagline {
-            text-align: center;
-            font-size: 14px;
-            color: #888;
-            margin-bottom: 20px;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+# 1. --- PAGE CONFIG (MUST BE FIRST) ---
+st.set_page_config(page_title="Dani Tech | Agentic RAG", page_icon="🤖", layout="wide")
 
-    with st.sidebar:
-        # 1. Display the Logo
-        # Ensure 'Dani_Logo.png' is in your GitHub root folder
-        st.image("Dani_Logo.png")
+# 2. --- BRANDING & CSS ---
+# We define this globally so it doesn't flicker or reset
+st.markdown(
+    """
+    <style>
+    [data-testid="stSidebar"] [data-testid="stImage"] img {
+        border-radius: 50%;
+        width: 180px !important;
+        height: 180px !important;
+        object-fit: cover;
+        margin-left: auto;
+        margin-right: auto;
+        display: block;
+        border: 3px solid #00d4ff;
+        box-shadow: 0px 4px 15px rgba(0, 212, 255, 0.3);
+    }
+    .brand-name {
+        text-align: center;
+        font-size: 24px;
+        font-weight: bold;
+        color: #ffffff;
+        margin-top: 10px;
+        font-family: 'Courier New', Courier, monospace;
+    }
+    .brand-tagline {
+        text-align: center;
+        font-size: 14px;
+        color: #888;
+        margin-bottom: 20px;
+    }
+    .side-footer {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        font-size: 12px;
+        color: #888;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
-# Call the branding function
-add_branding()
-
-# --- MAIN UI ---
-st.title("🧠 Agentic Self-Reflecting RAG")
-st.subheader("Corrective RAG (CRAG) with Hallucination Grading")
-
-# --- SAFE SECRETS LOADER ---
-groq_key = None
-tavily_key = None
-
-try:
-    if "GROQ_API_KEY" in st.secrets:
-        groq_key = st.secrets["GROQ_API_KEY"]
-    if "TAVILY_API_KEY" in st.secrets:
-        tavily_key = st.secrets["TAVILY_API_KEY"]
-except Exception:
-    pass
-
-# Fallback to Sidebar if Secrets aren't set
-if not groq_key or not tavily_key:
-    with st.sidebar:
-        st.header("🔑 Authentication")
-        if not groq_key:
-            groq_key = st.text_input("Groq API Key", type="password")
-        if not tavily_key:
-            tavily_key = st.text_input("Tavily API Key", type="password")
-
-# --- SIDEBAR: KNOWLEDGE BASE ---
+# 3. --- SIDEBAR UI ---
 with st.sidebar:
+    # Branding
+    st.image("Dani_Logo.png")
+    st.markdown("<div class='brand-name'>DANI TECH</div>", unsafe_allow_html=True)
+    st.markdown("<div class='brand-tagline'>Built by Dani Tech</div>", unsafe_allow_html=True)
     st.divider()
+
+    # Authentication
+    st.header("🔑 Authentication")
+    groq_key = st.secrets.get("GROQ_API_KEY") or st.text_input("Groq API Key", type="password")
+    tavily_key = st.secrets.get("TAVILY_API_KEY") or st.text_input("Tavily API Key", type="password")
+    
+    st.divider()
+    
+    # Knowledge Base
     st.header("📄 Knowledge Base")
-    st.markdown(
-        """
-        <style>
-        .side-footer {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            font-size: 12px;
-            color: #888;
-        }
-        </style>
-        <div class="side-footer">
-            Built by <b>Dani Tech</b> 🛠️
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-    uploaded_file = st.file_uploader("Upload a PDF (e.g., Tesla Impact Report)", type="pdf")
+    uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
     
     if st.button("Clear Chat History"):
         st.session_state.messages = []
+        st.rerun()
     
     st.divider()
     show_graph = st.checkbox("Show Agent Architecture")
+    
+    st.markdown("<div class='side-footer'>Built by <b>Dani Tech</b> 🛠️</div>", unsafe_allow_html=True)
 
-# --- INITIALIZE LLM & MODELS ---
+# 4. --- MAIN UI CONTENT ---
+st.title("🧠 Agentic Self-Reflecting RAG")
+st.subheader("Corrective RAG (CRAG) with Hallucination Grading")
+
+# 5. --- LOGIC & PROCESSING ---
 if groq_key and tavily_key:
     os.environ["GROQ_API_KEY"] = groq_key
     os.environ["TAVILY_API_KEY"] = tavily_key
     
-    # Using Llama 3 70B for high-quality reasoning
     llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
-    # --- VECTOR STORE LOGIC ---
-    if uploaded_file and "retriever" not in st.session_state:
-        with st.status("Indexing Document...", expanded=True):
-            with open("temp.pdf", "wb") as f:
-                f.write(uploaded_file.getbuffer())
-            loader = PyPDFLoader("temp.pdf")
-            data = loader.load()
-            text_splitter = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=100)
-            chunks = text_splitter.split_documents(data)
-            vectorstore = Chroma.from_documents(documents=chunks, embedding=embeddings)
-            st.session_state.retriever = vectorstore.as_retriever()
-            st.success("Indexing Complete!")
+    # FIX: PERSIST RETRIEVER IN SESSION STATE
+    # This prevents the app from re-indexing every time you click a checkbox or button
+    if uploaded_file:
+        file_id = f"{uploaded_file.name}_{uploaded_file.size}"
+        if "retriever" not in st.session_state or st.session_state.get("current_file") != file_id:
+            with st.status("🚀 Dani Tech Indexing Document...", expanded=True) as status:
+                # Save temp file
+                with open("temp.pdf", "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+                
+                # Load and split
+                loader = PyPDFLoader("temp.pdf")
+                data = loader.load()
+                text_splitter = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=100)
+                chunks = text_splitter.split_documents(data)
+                
+                # Create vectorstore
+                vectorstore = Chroma.from_documents(documents=chunks, embedding=embeddings)
+                st.session_state.retriever = vectorstore.as_retriever()
+                st.session_state.current_file = file_id
+                status.update(label="✅ Indexing Complete!", state="complete", expanded=False)
 
-    # --- AGENT STATE & UTILS ---
+    # --- AGENT STATE & NODES (Unchanged but verified) ---
     class GraphState(TypedDict):
         question: str
         generation: str
@@ -145,11 +127,9 @@ if groq_key and tavily_key:
         retry_count: int
 
     def get_binary_score(text: str) -> str:
-        """Standardizes LLM output to yes/no."""
         cleaned = text.lower().strip()
         return "yes" if "yes" in cleaned else "no"
 
-    # --- NODE FUNCTIONS ---
     def retrieve(state):
         question = state["question"]
         if "retriever" in st.session_state:
@@ -161,7 +141,6 @@ if groq_key and tavily_key:
         question = state["question"]
         docs = state["documents"]
         if not docs: return {"search_needed": "yes", "documents": docs}
-        
         grade_prompt = f"Is this document relevant to the question: '{question}'? Context: {docs[0]}. Answer only 'yes' or 'no'."
         response = llm.invoke(grade_prompt)
         score = get_binary_score(response.content)
@@ -177,7 +156,6 @@ if groq_key and tavily_key:
         source = "PDF Document" if state["search_needed"] == "no" else "Live Web Research"
         prompt = f"Facts: {state['documents']} \nQuestion: {state['question']} \nAnswer accurately. End with 'SOURCES: {source}'"
         response = llm.invoke(prompt)
-        # Ensure retry_count exists
         current_retry = state.get("retry_count", 0)
         return {"generation": response.content, "retry_count": current_retry + 1}
 
@@ -228,9 +206,4 @@ if groq_key and tavily_key:
             st.markdown(final_state["generation"])
             st.session_state.messages.append({"role": "assistant", "content": final_state["generation"]})
 else:
-    st.warning("Please provide API Keys in the sidebar or App Secrets to begin.")
-
-
-
-
-
+    st.warning("Please provide API Keys in the sidebar to begin.")
