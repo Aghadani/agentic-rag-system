@@ -67,7 +67,7 @@ with st.sidebar:
     st.divider()
     
     # Upload & Log
-    uploaded_file = st.file_uploader("Upload Research Paper (PDF)", type="pdf")
+    uploaded_file = st.file_uploader("Upload Documents (PDF)", type="pdf")
     if uploaded_file:
         file_id = f"{uploaded_file.name}_{uploaded_file.size}"
         if not any(log['id'] == file_id for log in st.session_state.upload_log):
@@ -174,4 +174,5 @@ if groq_key and tavily_key:
             st.session_state.messages.append({"role": "assistant", "content": final_state["generation"]})
 else:
     st.warning("Please provide API Keys in the sidebar to start.")
+
 
