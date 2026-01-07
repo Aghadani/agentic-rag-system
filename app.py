@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 from datetime import datetime
-from typing import List, TypedDict, Literal
+from typing import List, TypedDict
 
 # LangChain / LangGraph Imports
 from langchain_groq import ChatGroq
@@ -19,12 +19,12 @@ st.set_page_config(page_title="Dani Tech Agentic RAG", page_icon="🤖", layout=
 st.markdown(
     """
     <style>
-    /* Force main text and headers to be visible white */
-    .main .block-container h1, .main .block-container h2, .main .block-container h3, .main .block-container p, .main .block-container span {
+    /* Force main text visibility */
+    .main .block-container h1, .main .block-container h2, .main .block-container h3, 
+    .main .block-container p, .main .block-container span, .stMarkdown {
         color: #FFFFFF !important;
     }
-
-    /* Sidebar Image Branding */
+    /* Circular Logo Style */
     [data-testid="stSidebar"] [data-testid="stImage"] img {
         border-radius: 50%;
         width: 180px !important;
@@ -33,55 +33,45 @@ st.markdown(
         margin: auto;
         display: block;
         border: 3px solid #00d4ff;
-        box-shadow: 0px 4px 15px rgba(0, 212, 255, 0.3);
     }
-
-    /* Sidebar Brand Text */
-    .brand-name { 
-        text-align: center; 
-        font-size: 24px; 
-        font-weight: bold; 
-        color: #00d4ff !important; 
-        margin-top: 10px; 
-        font-family: 'Courier New', monospace; 
-    }
-    
+    .brand-name { text-align: center; font-size: 24px; font-weight: bold; color: #00d4ff !important; margin-top: 10px; font-family: 'Courier New', monospace; }
     .side-footer { position: fixed; bottom: 20px; left: 20px; font-size: 12px; color: #888; }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# 3. --- INITIALIZE SESSION STATE ---
-if "messages" not in st.session_state: st.session_state.messages = []
-if "upload_log" not in st.session_state: st.session_state.upload_log = []
+# 3. --- RESET CALLBACK ---
+def clear_retriever():
+    """Wipes the old PDF data from session state so the new one can load."""
+    if "retriever" in st.session_state:
+        del st.session_state.retriever
+    if "messages" in st.session_state:
+        st.session_state.messages = []
 
-# 4. --- SIDEBAR UI ---
+# 4. --- INITIALIZE SESSION STATE ---
+if "messages" not in st.session_state: st.session_state.messages = []
+
+# 5. --- SIDEBAR UI ---
 with st.sidebar:
     st.image("Dani_Logo.png")
+    st.markdown("<div class='brand-name'>DANI TECH</div>", unsafe_allow_html=True)
+    st.divider()
 
-    # Auth
+    # API Keys
     groq_key = st.secrets.get("GROQ_API_KEY") or st.text_input("Groq API Key", type="password")
     tavily_key = st.secrets.get("TAVILY_API_KEY") or st.text_input("Tavily API Key", type="password")
     
     st.divider()
     
-    # Upload & Log
-    uploaded_file = st.file_uploader("Upload Documents (PDF)", type="pdf")
-    if uploaded_file:
-        file_id = f"{uploaded_file.name}_{uploaded_file.size}"
-        if not any(log['id'] == file_id for log in st.session_state.upload_log):
-            st.session_state.upload_log.append({
-                "id": file_id,
-                "name": uploaded_file.name,
-                "time": datetime.now().strftime("%H:%M:%S")
-            })
+    # File Uploader with Callback
+    uploaded_file = st.file_uploader(
+        "Upload Research Paper (PDF)", 
+        type="pdf", 
+        on_change=clear_retriever  # Trigger reset on new file
+    )
 
-    with st.expander("📊 Document Upload Log"):
-        for item in st.session_state.upload_log:
-            st.caption(f"✅ {item['name']} (at {item['time']})")
-
-    if st.button("Clear History"):
+    if st.button("Clear All Chat"):
         st.session_state.messages = []
         st.rerun()
     
@@ -89,34 +79,41 @@ with st.sidebar:
     show_graph = st.checkbox("Show Agent Graph")
     st.markdown("<div class='side-footer'>Built by <b>Dani Tech</b> 🛠️</div>", unsafe_allow_html=True)
 
-# 5. --- MAIN UI TITLES ---
-# Moved outside of any condition to ensure they are always rendered first
+# 6. --- APP TITLES ---
 st.title("🧠 Agentic Self-Reflecting RAG")
 st.subheader("Corrective RAG (CRAG) with Hallucination Grading")
 
-# 6. --- LOGIC ---
+# 7. --- AGENT LOGIC ---
 if groq_key and tavily_key:
     os.environ["GROQ_API_KEY"] = groq_key
     os.environ["TAVILY_API_KEY"] = tavily_key
     llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
+    # Indexer runs only if retriever is missing
     if uploaded_file and "retriever" not in st.session_state:
-        with st.status("🚀 Dani Tech Agent Indexing...", expanded=True) as status:
+        with st.status("🚀 Dani Tech: Analyzing New Document...", expanded=True) as status:
             with open("temp.pdf", "wb") as f: f.write(uploaded_file.getbuffer())
             loader = PyPDFLoader("temp.pdf")
-            chunks = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=100).split_documents(loader.load())
-            st.session_state.retriever = Chroma.from_documents(documents=chunks, embedding=embeddings).as_retriever()
-            status.update(label="✅ Ready for Queries!", state="complete")
+            chunks = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=100).split_documents(loader.load())
+            
+            # Use unique collection name based on timestamp to prevent mixing data
+            collection_name = f"pdf_{int(datetime.now().timestamp())}"
+            vectorstore = Chroma.from_documents(
+                documents=chunks, 
+                embedding=embeddings,
+                collection_name=collection_name
+            )
+            st.session_state.retriever = vectorstore.as_retriever()
+            status.update(label=f"✅ Loaded: {uploaded_file.name}", state="complete")
 
-    # (Agent State/Nodes/Graph logic remains same as your previous version...)
+    # --- LANGGRAPH SETUP ---
     class GraphState(TypedDict):
         question: str
         generation: str
         documents: List[str]
         links: List[str]
         search_needed: str
-        retry_count: int
 
     def retrieve(state):
         docs = st.session_state.retriever.invoke(state["question"]) if "retriever" in st.session_state else []
@@ -124,7 +121,7 @@ if groq_key and tavily_key:
 
     def grade_documents(state):
         if not state["documents"]: return {"search_needed": "yes"}
-        score = llm.invoke(f"Is relevant? {state['documents'][0]}. Query: {state['question']}. Answer yes/no.").content.lower()
+        score = llm.invoke(f"Is context relevant to: {state['question']}? Answer yes/no.\nContext: {state['documents'][0]}").content.lower()
         return {"search_needed": "no" if "yes" in score else "yes"}
 
     def web_search(state):
@@ -137,13 +134,16 @@ if groq_key and tavily_key:
 
     def generate(state):
         source = "PDF" if state["search_needed"] == "no" else "Web"
-        res = llm.invoke(f"Context: {state['documents']}\nQuestion: {state['question']}\nCite as {source}.").content
-        return {"generation": res, "retry_count": state.get("retry_count", 0) + 1}
+        res = llm.invoke(f"Context: {state['documents']}\nQuestion: {state['question']}\nCite source as: {source}").content
+        return {"generation": res}
 
     workflow = StateGraph(GraphState)
-    workflow.add_node("retrieve", retrieve); workflow.add_node("grade", grade_documents)
-    workflow.add_node("web_search", web_search); workflow.add_node("generate", generate)
-    workflow.add_edge(START, "retrieve"); workflow.add_edge("retrieve", "grade")
+    workflow.add_node("retrieve", retrieve)
+    workflow.add_node("grade", grade_documents)
+    workflow.add_node("web_search", web_search)
+    workflow.add_node("generate", generate)
+    workflow.add_edge(START, "retrieve")
+    workflow.add_edge("retrieve", "grade")
     workflow.add_conditional_edges("grade", lambda x: "web" if x["search_needed"] == "yes" else "gen", {"web": "web_search", "gen": "generate"})
     workflow.add_edge("web_search", "generate")
     workflow.add_edge("generate", END)
@@ -151,8 +151,9 @@ if groq_key and tavily_key:
 
     if show_graph: st.sidebar.image(app.get_graph().draw_mermaid_png())
 
-    # --- CHAT ---
-    for msg in st.session_state.messages: st.chat_message(msg["role"]).write(msg["content"])
+    # --- CHAT INTERFACE ---
+    for msg in st.session_state.messages: 
+        st.chat_message(msg["role"]).write(msg["content"])
 
     if prompt := st.chat_input("Ask about your document..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
@@ -168,12 +169,9 @@ if groq_key and tavily_key:
             
             st.markdown(final_state["generation"])
             if final_state.get("links"):
-                with st.expander("🔗 Web References (Literature Support)"):
+                with st.expander("🔗 Web References"):
                     for link in final_state["links"]: st.write(f"- {link}")
             
             st.session_state.messages.append({"role": "assistant", "content": final_state["generation"]})
 else:
-    st.warning("Please provide API Keys in the sidebar to start.")
-
-
-
+    st.warning("Please provide API Keys in the sidebar to begin.")
