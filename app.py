@@ -13,12 +13,59 @@ from langchain_huggingface import HuggingFaceEmbeddings
 
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Agentic RAG Explorer", page_icon="🤖", layout="wide")
-# --- BRANDING ---
-st.logo(
-    "Dani_Logo.png",
-    link="https://danialzaidi.framer.website/", 
-    icon_image="Dani_Logo.png" 
-)
+# --- BRANDING & CUSTOM CSS ---
+def add_branding():
+    st.markdown(
+        """
+        <style>
+        /* Make the sidebar image large and circular */
+        [data-testid="stSidebar"] [data-testid="stImage"] img {
+            border-radius: 50%;
+            width: 180px !important;  /* Increased size */
+            height: 180px !important; /* Perfect circle */
+            object-fit: cover;
+            margin-left: auto;
+            margin-right: auto;
+            display: block;
+            border: 3px solid #00d4ff; /* Tech-blue border */
+            box-shadow: 0px 4px 15px rgba(0, 212, 255, 0.3);
+        }
+        
+        /* Centered Brand Name */
+        .brand-name {
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffffff;
+            margin-top: 10px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        
+        .brand-tagline {
+            text-align: center;
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 20px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    with st.sidebar:
+        # 1. Display the Logo
+        # Ensure 'Dani_Logo.png' is in your GitHub root folder
+        st.image("Dani_Logo.png")
+        
+        # 2. Display Brand Text
+        st.markdown("<div class='brand-name'>DANI TECH</div>", unsafe_allow_html=True)
+        st.markdown("<div class='brand-tagline'>Built by Dani Tech</div>", unsafe_allow_html=True)
+        st.divider()
+
+# Call the branding function
+add_branding()
+
+# --- MAIN UI ---
 st.title("🧠 Agentic Self-Reflecting RAG")
 st.subheader("Corrective RAG (CRAG) with Hallucination Grading")
 
@@ -187,5 +234,6 @@ if groq_key and tavily_key:
             st.session_state.messages.append({"role": "assistant", "content": final_state["generation"]})
 else:
     st.warning("Please provide API Keys in the sidebar or App Secrets to begin.")
+
 
 
