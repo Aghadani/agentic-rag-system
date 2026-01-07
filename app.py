@@ -15,29 +15,37 @@ from langchain_huggingface import HuggingFaceEmbeddings
 # 1. --- PAGE CONFIG ---
 st.set_page_config(page_title="Dani Tech Agentic RAG", page_icon="🤖", layout="wide")
 
-# 2. --- BRANDING & VISIBILITY CSS ---
+# 2. --- BRANDING & VISIBILITY CSS (Light Mode) ---
 st.markdown(
     """
     <style>
-    /* 1. FORCE DARK BACKGROUND FOR THE WHOLE APP */
+    /* 1. FORCE WHITE BACKGROUND */
     .stApp {
-        background-color: #0E1117;
+        background-color: #FFFFFF !important;
     }
 
-    /* 2. FORCE MAIN TEXT AND HEADERS TO BE VISIBLE WHITE */
+    /* 2. FORCE BLACK TEXT FOR READABILITY */
     .main .block-container h1, .main .block-container h2, .main .block-container h3, 
     .main .block-container p, .main .block-container span, .stMarkdown {
-        color: #FFFFFF !important;
+        color: #000000 !important;
     }
 
-    /* 3. FIX CHAT INPUT ACCESSIBILITY (Darker box so white text shows) */
-    [data-testid="stChatInput"] textarea {
-        background-color: #262730 !important;
-        color: white !important;
-        border: 1px solid #00d4ff !important;
+    /* 3. FIX CHAT BUBBLES FOR LIGHT MODE */
+    [data-testid="stChatMessage"] {
+        background-color: #f0f2f6 !important; /* Light grey bubbles */
+        border-radius: 10px;
+        color: #000000 !important;
+    }
+    
+    [data-testid="stChatMessage"] p {
+        color: #000000 !important;
     }
 
-    /* 4. CIRCULAR LOGO STYLE */
+    /* 4. SIDEBAR BRANDING (Keep the Tech-Blue accent) */
+    [data-testid="stSidebar"] {
+        background-color: #f8f9fb !important;
+    }
+
     [data-testid="stSidebar"] [data-testid="stImage"] img {
         border-radius: 50%;
         width: 180px !important;
@@ -52,12 +60,12 @@ st.markdown(
         text-align: center; 
         font-size: 24px; 
         font-weight: bold; 
-        color: #00d4ff !important; 
+        color: #0078ff !important; /* Slightly darker blue for white background */
         margin-top: 10px; 
         font-family: 'Courier New', monospace; 
     }
 
-    .side-footer { position: fixed; bottom: 20px; left: 20px; font-size: 12px; color: #888; }
+    .side-footer { position: fixed; bottom: 20px; left: 20px; font-size: 12px; color: #666; }
     </style>
     """,
     unsafe_allow_html=True
@@ -196,4 +204,5 @@ if groq_key and tavily_key:
             st.session_state.messages.append({"role": "assistant", "content": final_state["generation"]})
 else:
     st.warning("Please provide API Keys in the sidebar to begin.")
+
 
