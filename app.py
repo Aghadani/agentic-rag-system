@@ -56,7 +56,6 @@ def add_branding():
         # 1. Display the Logo
         # Ensure 'Dani_Logo.png' is in your GitHub root folder
         st.image("Dani_Logo.png")
-        st.divider()
 
 # Call the branding function
 add_branding()
@@ -230,6 +229,7 @@ if groq_key and tavily_key:
             st.session_state.messages.append({"role": "assistant", "content": final_state["generation"]})
 else:
     st.warning("Please provide API Keys in the sidebar or App Secrets to begin.")
+
 
 
 
