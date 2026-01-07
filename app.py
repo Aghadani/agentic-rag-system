@@ -98,7 +98,7 @@ if groq_key and tavily_key:
     if uploaded_file:
         file_id = f"{uploaded_file.name}_{uploaded_file.size}"
         if "retriever" not in st.session_state or st.session_state.get("current_file") != file_id:
-            with st.status("🚀 Dani Tech Indexing Document...", expanded=True) as status:
+            with st.status("🚀 Indexing Document...", expanded=True) as status:
                 # Save temp file
                 with open("temp.pdf", "wb") as f:
                     f.write(uploaded_file.getbuffer())
@@ -204,4 +204,5 @@ if groq_key and tavily_key:
             st.session_state.messages.append({"role": "assistant", "content": final_state["generation"]})
 else:
     st.warning("Please provide API Keys in the sidebar to begin.")
+
 
