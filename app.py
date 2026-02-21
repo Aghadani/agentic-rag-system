@@ -24,7 +24,51 @@ html, body, .stApp {
     font-family: 'DM Sans', sans-serif !important;
 }
 
-#MainMenu, footer, header { visibility: hidden; }
+#MainMenu, footer { visibility: hidden; }
+
+/* Keep the header visible but style it cleanly */
+header[data-testid="stHeader"] {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+/* Style the sidebar collapse/expand toggle button */
+[data-testid="stSidebarCollapsedControl"] {
+    background: #ffffff !important;
+    border: 1px solid #ede9e3 !important;
+    border-radius: 0 12px 12px 0 !important;
+    box-shadow: 4px 0 16px rgba(0,0,0,0.06) !important;
+    top: 50% !important;
+    width: 1.5rem !important;
+    padding: 1rem 0.2rem !important;
+}
+[data-testid="stSidebarCollapsedControl"]:hover {
+    border-color: #d4935a !important;
+    box-shadow: 4px 0 20px rgba(212,147,90,0.15) !important;
+}
+[data-testid="stSidebarCollapsedControl"] svg {
+    color: #9e917e !important;
+    fill: #9e917e !important;
+}
+
+/* Sidebar toggle button when sidebar is open */
+[data-testid="stSidebar"] [data-testid="stSidebarNavSeparator"],
+[data-testid="collapsedControl"] {
+    display: block !important;
+    visibility: visible !important;
+}
+
+button[kind="header"] {
+    background: #ffffff !important;
+    border: 1px solid #ede9e3 !important;
+    border-radius: 10px !important;
+    color: #9e917e !important;
+}
+button[kind="header"]:hover {
+    border-color: #d4935a !important;
+    color: #d4935a !important;
+}
+
 .block-container {
     padding: 0 2.5rem 4rem !important;
     max-width: 900px !important;
@@ -49,6 +93,24 @@ html, body, .stApp {
     box-shadow: 4px 0 24px rgba(0,0,0,0.04) !important;
 }
 [data-testid="stSidebar"] > div { padding: 2rem 1.4rem !important; }
+
+/* Always keep sidebar toggle buttons visible */
+[data-testid="stSidebar"] button {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: flex !important;
+}
+/* The chevron/arrow collapse button inside the sidebar */
+[data-testid="stSidebar"] button[data-testid="stBaseButton-headerNoPadding"] {
+    background: #faf8f5 !important;
+    border: 1px solid #ede9e3 !important;
+    border-radius: 8px !important;
+    color: #9e917e !important;
+}
+[data-testid="stSidebar"] button[data-testid="stBaseButton-headerNoPadding"]:hover {
+    border-color: #d4935a !important;
+    color: #d4935a !important;
+}
 
 [data-testid="stSidebar"] [data-testid="stImage"] img {
     border-radius: 50%;
