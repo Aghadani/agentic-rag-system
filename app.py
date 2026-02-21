@@ -26,36 +26,39 @@ html, body, .stApp {
 
 #MainMenu, footer { visibility: hidden; }
 
-/* Keep the header visible but style it cleanly */
+/* Keep the header transparent and clean */
 header[data-testid="stHeader"] {
     background: transparent !important;
     box-shadow: none !important;
 }
 
-/* Style the sidebar collapse/expand toggle button */
+/* Sidebar collapse/expand tab (shown when sidebar is hidden) */
 [data-testid="stSidebarCollapsedControl"] {
     background: #ffffff !important;
     border: 1px solid #ede9e3 !important;
     border-radius: 0 12px 12px 0 !important;
     box-shadow: 4px 0 16px rgba(0,0,0,0.06) !important;
-    top: 50% !important;
     width: 1.5rem !important;
     padding: 1rem 0.2rem !important;
+    overflow: hidden !important;
+    /* suppress the raw "keyboard_double_arrow" text */
+    font-size: 0 !important;
+    color: transparent !important;
 }
 [data-testid="stSidebarCollapsedControl"]:hover {
     border-color: #d4935a !important;
     box-shadow: 4px 0 20px rgba(212,147,90,0.15) !important;
 }
 [data-testid="stSidebarCollapsedControl"] svg {
+    display: block !important;
+    width: 1rem !important;
+    height: 1rem !important;
     color: #9e917e !important;
     fill: #9e917e !important;
 }
-
-/* Sidebar toggle button when sidebar is open */
-[data-testid="stSidebar"] [data-testid="stSidebarNavSeparator"],
-[data-testid="collapsedControl"] {
-    display: block !important;
-    visibility: visible !important;
+/* hide the material-icon text ligature specifically */
+[data-testid="stSidebarCollapsedControl"] span {
+    display: none !important;
 }
 
 button[kind="header"] {
@@ -499,6 +502,43 @@ button[kind="header"]:hover {
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: #faf8f5; }
 ::-webkit-scrollbar-thumb { background: #e0cdb8; border-radius: 4px; }
+
+/* ── FIX: Hide "keyboard_double_arrow" text from sidebar toggle ── */
+[data-testid="stSidebarCollapsedControl"] span,
+[data-testid="stSidebarCollapsedControl"] p,
+[data-testid="collapsedControl"] span,
+button[data-testid="stBaseButton-headerNoPadding"] span.css-1aehpvj,
+[data-testid="stSidebar"] button span[class*="material"] {
+    font-size: 0 !important;
+    color: transparent !important;
+    display: none !important;
+}
+
+/* Keep the actual SVG arrow icon visible */
+[data-testid="stSidebarCollapsedControl"] svg,
+[data-testid="stSidebar"] button svg {
+    display: block !important;
+    visibility: visible !important;
+    width: 1.1rem !important;
+    height: 1.1rem !important;
+    color: #9e917e !important;
+    fill: #9e917e !important;
+}
+
+/* Hide any raw text nodes that render as "keyboard_double_arrow_right/left" */
+[data-testid="stSidebarCollapsedControl"] {
+    overflow: hidden !important;
+    font-size: 0 !important;
+}
+[data-testid="stSidebarCollapsedControl"] * {
+    font-family: inherit !important;
+}
+/* Material icon font override — make the ligature invisible */
+.material-symbols-rounded,
+.material-icons {
+    font-size: 1.2rem !important;
+    color: #9e917e !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
