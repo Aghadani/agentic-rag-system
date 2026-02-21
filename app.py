@@ -3,7 +3,6 @@ import os
 from datetime import datetime
 from typing import List, TypedDict
 
-# LangChain / LangGraph Imports
 from langchain_groq import ChatGroq
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langgraph.graph import END, StateGraph, START
@@ -12,498 +11,571 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 
-# 1. --- PAGE CONFIG ---
-st.set_page_config(page_title="Dani Tech · Agentic RAG", page_icon="⬡", layout="wide")
+st.set_page_config(page_title="Dani Tech · RAG", page_icon="✦", layout="wide")
 
-# 2. --- CUSTOM CSS ---
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400&display=swap');
 
-/* ── ROOT VARIABLES ── */
-:root {
-    --bg-void:    #07080d;
-    --bg-card:    #0d0f1a;
-    --bg-raised:  #131626;
-    --border:     rgba(255,255,255,0.07);
-    --accent-1:   #00e5ff;
-    --accent-2:   #7b5ea7;
-    --accent-glow:rgba(0,229,255,0.18);
-    --text-pri:   #eef2ff;
-    --text-sec:   #8892b0;
-    --text-dim:   #4a5270;
-    --radius:     14px;
-    --font-head:  'Syne', sans-serif;
-    --font-mono:  'Space Mono', monospace;
-}
+* { box-sizing: border-box; }
 
-/* ── GLOBAL RESET ── */
 html, body, .stApp {
-    background-color: var(--bg-void) !important;
-    color: var(--text-pri) !important;
-    font-family: var(--font-head) !important;
+    background: #faf8f5 !important;
+    font-family: 'DM Sans', sans-serif !important;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: var(--bg-void); }
-::-webkit-scrollbar-thumb { background: var(--accent-2); border-radius: 4px; }
+#MainMenu, footer, header { visibility: hidden; }
+.block-container {
+    padding: 0 2.5rem 4rem !important;
+    max-width: 900px !important;
+}
 
-/* ── SIDEBAR ── */
+.stApp::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+        radial-gradient(ellipse 800px 500px at 10% 0%, rgba(255,200,130,0.18) 0%, transparent 70%),
+        radial-gradient(ellipse 600px 400px at 90% 100%, rgba(180,160,255,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 500px 300px at 50% 50%, rgba(255,220,180,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* SIDEBAR */
 [data-testid="stSidebar"] {
-    background: var(--bg-card) !important;
-    border-right: 1px solid var(--border) !important;
+    background: #ffffff !important;
+    border-right: 1px solid #ede9e3 !important;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.04) !important;
 }
-
-[data-testid="stSidebar"] > div:first-child {
-    padding-top: 2rem;
-}
+[data-testid="stSidebar"] > div { padding: 2rem 1.4rem !important; }
 
 [data-testid="stSidebar"] [data-testid="stImage"] img {
     border-radius: 50%;
-    width: 110px !important;
-    height: 110px !important;
+    width: 96px !important;
+    height: 96px !important;
     object-fit: cover;
-    margin: 0 auto 0.5rem;
     display: block;
-    border: 2px solid var(--accent-1);
-    box-shadow: 0 0 24px var(--accent-glow);
+    margin: 0 auto 0.8rem;
+    box-shadow: 0 8px 30px rgba(220,150,80,0.25), 0 0 0 3px #fff, 0 0 0 5px rgba(220,150,80,0.2);
 }
 
-/* Sidebar labels & text */
-[data-testid="stSidebar"] label,
-[data-testid="stSidebar"] p,
-[data-testid="stSidebar"] span {
-    color: var(--text-sec) !important;
-    font-family: var(--font-mono) !important;
+[data-testid="stSidebar"] label {
+    font-family: 'DM Sans', sans-serif !important;
     font-size: 0.72rem !important;
+    font-weight: 500 !important;
+    color: #9e917e !important;
+    text-transform: uppercase;
+    letter-spacing: 0.08em !important;
+}
+[data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.8rem !important;
+    color: #9e917e !important;
 }
 
 [data-testid="stSidebar"] .stTextInput input {
-    background: var(--bg-raised) !important;
-    border: 1px solid var(--border) !important;
-    color: var(--accent-1) !important;
-    border-radius: 8px !important;
-    font-family: var(--font-mono) !important;
+    background: #faf8f5 !important;
+    border: 1.5px solid #ede9e3 !important;
+    border-radius: 10px !important;
+    font-family: 'DM Mono', monospace !important;
     font-size: 0.75rem !important;
+    color: #3d3530 !important;
+    padding: 0.55rem 0.8rem !important;
+    transition: border-color 0.2s, box-shadow 0.2s !important;
 }
 [data-testid="stSidebar"] .stTextInput input:focus {
-    border-color: var(--accent-1) !important;
-    box-shadow: 0 0 12px var(--accent-glow) !important;
+    border-color: #d4935a !important;
+    box-shadow: 0 0 0 3px rgba(212,147,90,0.12) !important;
+    outline: none !important;
 }
 
-/* ── BRAND NAME ── */
-.brand-name {
-    text-align: center;
-    font-family: var(--font-head) !important;
-    font-size: 1.4rem;
-    font-weight: 800;
-    letter-spacing: 0.18em;
-    color: var(--accent-1) !important;
-    text-transform: uppercase;
-    margin-bottom: 0.15rem;
+.sidebar-brand { text-align: center; margin-bottom: 1.6rem; }
+.sidebar-brand-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #3d3530;
+    letter-spacing: 0.06em;
 }
-.brand-tagline {
-    text-align: center;
-    font-family: var(--font-mono) !important;
-    font-size: 0.58rem;
-    color: var(--text-dim);
-    letter-spacing: 0.22em;
+.sidebar-brand-sub {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.65rem;
+    color: #b0a090;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-top: 2px;
+}
+
+[data-testid="stSidebar"] hr {
+    border: none !important;
+    border-top: 1px solid #ede9e3 !important;
+    margin: 1.2rem 0 !important;
+}
+
+/* FILE UPLOADER */
+[data-testid="stFileUploader"] {
+    background: linear-gradient(135deg, #fffcf8 0%, #fdf5ec 100%) !important;
+    border: 1.5px dashed #e0c9a8 !important;
+    border-radius: 14px !important;
+    padding: 1rem !important;
+    transition: border-color 0.25s, box-shadow 0.25s !important;
+}
+[data-testid="stFileUploader"]:hover {
+    border-color: #d4935a !important;
+    box-shadow: 0 4px 20px rgba(212,147,90,0.1) !important;
+}
+[data-testid="stFileUploader"] span, [data-testid="stFileUploader"] p {
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.72rem !important;
+    color: #b0a090 !important;
+}
+[data-testid="stFileUploader"] button {
+    background: linear-gradient(135deg, #d4935a, #c47a3e) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    color: #fff !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.72rem !important;
+    font-weight: 500 !important;
+    padding: 0.4rem 1rem !important;
+    box-shadow: 0 3px 10px rgba(212,147,90,0.3) !important;
+}
+
+/* BUTTONS */
+.stButton > button {
+    background: #ffffff !important;
+    color: #6b5e50 !important;
+    border: 1.5px solid #ede9e3 !important;
+    border-radius: 10px !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.78rem !important;
+    font-weight: 500 !important;
+    padding: 0.45rem 1.1rem !important;
+    width: 100% !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05) !important;
+}
+.stButton > button:hover {
+    border-color: #d4935a !important;
+    color: #d4935a !important;
+    box-shadow: 0 4px 16px rgba(212,147,90,0.15) !important;
+    transform: translateY(-1px) !important;
+}
+
+[data-testid="stCheckbox"] span {
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.75rem !important;
+    color: #9e917e !important;
+}
+
+/* HERO */
+.hero { padding: 3.5rem 0 2rem; position: relative; }
+.hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(212,147,90,0.1);
+    border: 1px solid rgba(212,147,90,0.25);
+    border-radius: 999px;
+    padding: 5px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: #c47a3e;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     margin-bottom: 1.2rem;
 }
-
-/* ── DIVIDER ── */
-hr {
-    border: none;
-    border-top: 1px solid var(--border) !important;
-    margin: 1rem 0 !important;
+.hero-dot {
+    width: 6px; height: 6px;
+    background: #d4935a;
+    border-radius: 50%;
+    animation: blink 2s ease-in-out infinite;
 }
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
 
-/* ── MAIN HEADER ── */
-.hero-header {
-    padding: 2.5rem 0 1rem;
-    position: relative;
-}
 .hero-title {
-    font-family: var(--font-head) !important;
-    font-size: 2.6rem;
-    font-weight: 800;
-    color: var(--text-pri) !important;
+    font-family: 'Playfair Display', serif;
+    font-size: 3rem;
+    font-weight: 700;
+    color: #2a2220;
     line-height: 1.1;
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.75rem;
     letter-spacing: -0.02em;
 }
-.hero-title span {
-    background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+.hero-title em {
+    font-style: italic;
+    background: linear-gradient(135deg, #d4935a 0%, #c05fa0 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
-.hero-sub {
-    font-family: var(--font-mono) !important;
-    font-size: 0.75rem;
-    color: var(--text-dim);
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
+.hero-desc {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    color: #9e917e;
+    line-height: 1.7;
+    max-width: 520px;
 }
-.status-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(0,229,255,0.07);
-    border: 1px solid rgba(0,229,255,0.2);
-    border-radius: 999px;
-    padding: 4px 14px;
-    font-family: var(--font-mono) !important;
-    font-size: 0.65rem;
-    color: var(--accent-1);
+
+/* STAT CARDS */
+.cards-row { display: flex; gap: 12px; margin: 2rem 0 2.5rem; }
+.card {
+    flex: 1;
+    background: #ffffff;
+    border: 1px solid #ede9e3;
+    border-radius: 16px;
+    padding: 1.1rem 1.2rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+.card:hover { box-shadow: 0 8px 30px rgba(0,0,0,0.08); transform: translateY(-2px); }
+.card-icon { font-size: 1.3rem; margin-bottom: 0.5rem; }
+.card-label {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.6rem;
+    font-weight: 500;
+    color: #c4b5a5;
+    text-transform: uppercase;
     letter-spacing: 0.1em;
-    text-transform: uppercase;
-    margin-bottom: 1.8rem;
+    margin-bottom: 2px;
 }
-.pulse-dot {
-    width: 6px; height: 6px;
-    background: var(--accent-1);
+.card-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #3d3530;
+}
+
+/* PIPELINE */
+.pipeline-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 0 0 2.5rem;
+    flex-wrap: wrap;
+}
+.pipeline-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid #ede9e3;
+    border-radius: 999px;
+    padding: 6px 14px 6px 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: #9e917e;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.pipeline-step .step-num {
+    width: 20px; height: 20px;
+    background: linear-gradient(135deg, #d4935a, #c05fa0);
     border-radius: 50%;
-    animation: pulse 1.8s ease-in-out infinite;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: #fff;
     flex-shrink: 0;
 }
-@keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50%       { opacity: 0.4; transform: scale(0.7); }
+.pipeline-arrow {
+    width: 24px; height: 1px;
+    background: #ede9e3;
+    position: relative;
+    flex-shrink: 0;
+}
+.pipeline-arrow::after {
+    content: '';
+    position: absolute;
+    right: -1px; top: -3px;
+    border: 4px solid transparent;
+    border-left: 6px solid #ede9e3;
 }
 
-/* ── CHAT MESSAGES ── */
+/* CHAT SECTION LABEL */
+.chat-section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1.2rem;
+}
+.chat-section-line { flex: 1; height: 1px; background: linear-gradient(90deg, #ede9e3, transparent); }
+.chat-section-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.62rem;
+    color: #c4b5a5;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+/* CHAT MESSAGES */
 [data-testid="stChatMessage"] {
-    background: var(--bg-card) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: var(--radius) !important;
-    margin-bottom: 0.75rem !important;
-    padding: 1rem 1.2rem !important;
-    transition: border-color 0.2s;
+    background: #ffffff !important;
+    border: 1px solid #ede9e3 !important;
+    border-radius: 18px !important;
+    padding: 1.1rem 1.4rem !important;
+    margin-bottom: 1rem !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04) !important;
+    transition: box-shadow 0.2s !important;
 }
 [data-testid="stChatMessage"]:hover {
-    border-color: rgba(0,229,255,0.15) !important;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.07) !important;
 }
-[data-testid="stChatMessage"] p,
-[data-testid="stChatMessage"] li,
-[data-testid="stChatMessage"] span {
-    color: var(--text-pri) !important;
-    font-family: var(--font-head) !important;
-    font-size: 0.9rem !important;
-    line-height: 1.65 !important;
+[data-testid="stChatMessage"] p {
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.92rem !important;
+    color: #3d3530 !important;
+    line-height: 1.75 !important;
+}
+[data-testid="stChatMessage"] li {
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.88rem !important;
+    color: #3d3530 !important;
 }
 [data-testid="stChatMessage"] code {
-    background: var(--bg-raised) !important;
-    color: var(--accent-1) !important;
-    font-family: var(--font-mono) !important;
+    background: #faf4ee !important;
+    color: #c47a3e !important;
+    font-family: 'DM Mono', monospace !important;
     font-size: 0.8rem !important;
-    border-radius: 4px;
-    padding: 1px 5px;
+    border-radius: 5px !important;
+    padding: 1px 6px !important;
+}
+[data-testid="stChatMessage"] h1,
+[data-testid="stChatMessage"] h2,
+[data-testid="stChatMessage"] h3 {
+    font-family: 'Playfair Display', serif !important;
+    color: #2a2220 !important;
 }
 
-/* ── CHAT INPUT ── */
+/* CHAT INPUT */
+[data-testid="stChatInput"] { padding: 0 !important; }
 [data-testid="stChatInput"] > div {
-    background: var(--bg-card) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: var(--radius) !important;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    background: #ffffff !important;
+    border: 1.5px solid #ede9e3 !important;
+    border-radius: 18px !important;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.07) !important;
+    transition: border-color 0.25s, box-shadow 0.25s !important;
+    overflow: hidden !important;
 }
 [data-testid="stChatInput"] > div:focus-within {
-    border-color: var(--accent-1) !important;
-    box-shadow: 0 0 20px var(--accent-glow) !important;
+    border-color: #d4935a !important;
+    box-shadow: 0 4px 32px rgba(212,147,90,0.18) !important;
 }
 [data-testid="stChatInput"] textarea {
     background: transparent !important;
-    color: var(--text-pri) !important;
-    font-family: var(--font-head) !important;
+    font-family: 'DM Sans', sans-serif !important;
     font-size: 0.9rem !important;
+    color: #3d3530 !important;
+    padding: 1rem 1.2rem !important;
 }
-[data-testid="stChatInput"] textarea::placeholder {
-    color: var(--text-dim) !important;
-}
-
-/* ── SEND BUTTON ── */
+[data-testid="stChatInput"] textarea::placeholder { color: #c4b5a5 !important; }
 [data-testid="stChatInput"] button {
-    background: var(--accent-1) !important;
-    border-radius: 8px !important;
+    background: linear-gradient(135deg, #d4935a 0%, #c05fa0 100%) !important;
+    border-radius: 12px !important;
     border: none !important;
+    margin: 6px !important;
+    box-shadow: 0 3px 12px rgba(212,147,90,0.3) !important;
+    transition: opacity 0.2s !important;
 }
-[data-testid="stChatInput"] button svg {
-    fill: var(--bg-void) !important;
-}
+[data-testid="stChatInput"] button:hover { opacity: 0.88 !important; }
+[data-testid="stChatInput"] button svg { fill: #fff !important; }
 
-/* ── BUTTONS ── */
-.stButton > button {
-    background: var(--bg-raised) !important;
-    color: var(--text-sec) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 8px !important;
-    font-family: var(--font-mono) !important;
-    font-size: 0.72rem !important;
-    letter-spacing: 0.08em !important;
-    transition: all 0.2s !important;
-    width: 100% !important;
-}
-.stButton > button:hover {
-    border-color: var(--accent-1) !important;
-    color: var(--accent-1) !important;
-    box-shadow: 0 0 12px var(--accent-glow) !important;
-}
-
-/* ── FILE UPLOADER ── */
-[data-testid="stFileUploader"] {
-    background: var(--bg-raised) !important;
-    border: 1px dashed rgba(0,229,255,0.2) !important;
-    border-radius: var(--radius) !important;
-    padding: 0.8rem !important;
-    transition: border-color 0.2s;
-}
-[data-testid="stFileUploader"]:hover {
-    border-color: var(--accent-1) !important;
-}
-[data-testid="stFileUploader"] p,
-[data-testid="stFileUploader"] span {
-    color: var(--text-dim) !important;
-    font-family: var(--font-mono) !important;
-    font-size: 0.7rem !important;
-}
-[data-testid="stFileUploader"] button {
-    background: rgba(0,229,255,0.08) !important;
-    border: 1px solid rgba(0,229,255,0.2) !important;
-    border-radius: 6px !important;
-    color: var(--accent-1) !important;
-    font-family: var(--font-mono) !important;
-    font-size: 0.68rem !important;
-}
-
-/* ── STATUS / SPINNER ── */
+/* STATUS */
 [data-testid="stStatusWidget"] {
-    background: var(--bg-card) !important;
-    border: 1px solid rgba(0,229,255,0.15) !important;
-    border-radius: var(--radius) !important;
-    font-family: var(--font-mono) !important;
-    font-size: 0.78rem !important;
-    color: var(--text-sec) !important;
+    background: #fffcf9 !important;
+    border: 1px solid #f0e6d8 !important;
+    border-radius: 14px !important;
+    box-shadow: 0 4px 20px rgba(212,147,90,0.08) !important;
 }
-[data-testid="stStatusWidget"] p,
-[data-testid="stStatusWidget"] span {
-    color: var(--text-sec) !important;
-    font-family: var(--font-mono) !important;
+[data-testid="stStatusWidget"] p, [data-testid="stStatusWidget"] span {
+    font-family: 'DM Mono', monospace !important;
     font-size: 0.75rem !important;
+    color: #9e917e !important;
 }
 
-/* ── EXPANDER ── */
+/* EXPANDER */
 [data-testid="stExpander"] {
-    background: var(--bg-raised) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 10px !important;
-    margin-top: 0.5rem !important;
+    background: #fdf8f3 !important;
+    border: 1px solid #ede9e3 !important;
+    border-radius: 12px !important;
+    margin-top: 0.6rem !important;
 }
-[data-testid="stExpander"] summary,
-[data-testid="stExpander"] p {
-    color: var(--text-sec) !important;
-    font-family: var(--font-mono) !important;
-    font-size: 0.72rem !important;
-}
-[data-testid="stExpander"] a {
-    color: var(--accent-1) !important;
-    font-size: 0.72rem !important;
-    font-family: var(--font-mono) !important;
-}
-
-/* ── CHECKBOX ── */
-[data-testid="stCheckbox"] span {
-    color: var(--text-sec) !important;
-    font-family: var(--font-mono) !important;
-    font-size: 0.72rem !important;
-}
-
-/* ── WARNING / INFO ── */
-[data-testid="stAlert"] {
-    background: rgba(123, 94, 167, 0.12) !important;
-    border: 1px solid rgba(123, 94, 167, 0.3) !important;
-    border-radius: 10px !important;
-    color: var(--text-sec) !important;
-    font-family: var(--font-mono) !important;
+[data-testid="stExpander"] summary {
+    font-family: 'DM Sans', sans-serif !important;
     font-size: 0.78rem !important;
+    font-weight: 500 !important;
+    color: #9e917e !important;
+}
+[data-testid="stExpander"] p, [data-testid="stExpander"] a {
+    font-family: 'DM Mono', monospace !important;
+    font-size: 0.7rem !important;
+    color: #c47a3e !important;
 }
 
-/* ── FOOTER ── */
+/* ALERT */
+[data-testid="stAlert"] {
+    background: #fdf8f3 !important;
+    border: 1px solid #f0d8bc !important;
+    border-left: 4px solid #d4935a !important;
+    border-radius: 12px !important;
+    color: #9e917e !important;
+    font-family: 'DM Sans', sans-serif !important;
+    font-size: 0.83rem !important;
+}
+
 .side-footer {
     position: fixed;
-    bottom: 18px;
-    left: 18px;
-    font-family: var(--font-mono) !important;
-    font-size: 0.62rem;
-    color: var(--text-dim);
-    letter-spacing: 0.08em;
-}
-
-/* ── STAT CARDS ── */
-.stat-row {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 1.8rem;
-}
-.stat-card {
-    flex: 1;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 0.9rem 1rem;
-}
-.stat-label {
-    font-family: 'Space Mono', monospace;
-    font-size: 0.58rem;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    margin-bottom: 4px;
-}
-.stat-value {
-    font-family: 'Syne', sans-serif;
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--accent-1);
-}
-
-/* ── NODE BADGE ── */
-.node-badge {
-    display: inline-block;
-    background: rgba(0,229,255,0.07);
-    border: 1px solid rgba(0,229,255,0.18);
-    border-radius: 6px;
-    padding: 2px 8px;
-    font-family: var(--font-mono) !important;
+    bottom: 20px;
+    left: 1rem;
+    font-family: 'DM Sans', sans-serif;
     font-size: 0.65rem;
-    color: var(--accent-1);
-    margin-right: 4px;
-    margin-bottom: 4px;
+    color: #c4b5a5;
+    letter-spacing: 0.06em;
 }
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: #faf8f5; }
+::-webkit-scrollbar-thumb { background: #e0cdb8; border-radius: 4px; }
 </style>
 """, unsafe_allow_html=True)
 
 
-# 3. --- RESET CALLBACK ---
+# ── RESET ──────────────────────────────────────────────────────────────────────
 def clear_retriever():
     if "retriever" in st.session_state:
         del st.session_state.retriever
     if "messages" in st.session_state:
         st.session_state.messages = []
 
-# 4. --- INITIALIZE SESSION STATE ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# 5. --- SIDEBAR UI ---
+
+# ── SIDEBAR ────────────────────────────────────────────────────────────────────
 with st.sidebar:
-    # Try loading logo, fallback gracefully
     try:
         st.image("Dani_Logo.png")
     except Exception:
-        st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
 
-    st.markdown("<div class='brand-name'>DANI TECH</div>", unsafe_allow_html=True)
-    st.markdown("<div class='brand-tagline'>Intelligent Document Systems</div>", unsafe_allow_html=True)
+    st.markdown("""
+    <div class='sidebar-brand'>
+        <div class='sidebar-brand-name'>Dani Tech</div>
+        <div class='sidebar-brand-sub'>Agentic Intelligence</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # API Keys
-    groq_key = st.secrets.get("GROQ_API_KEY") or st.text_input("Groq API Key", type="password", placeholder="gsk_...")
-    tavily_key = st.secrets.get("TAVILY_API_KEY") or st.text_input("Tavily API Key", type="password", placeholder="tvly-...")
+    groq_key   = st.secrets.get("GROQ_API_KEY")   or st.text_input("Groq API Key",   type="password", placeholder="gsk_···")
+    tavily_key = st.secrets.get("TAVILY_API_KEY") or st.text_input("Tavily API Key", type="password", placeholder="tvly-···")
 
     st.divider()
 
     uploaded_file = st.file_uploader(
-        "Upload Research Paper",
-        type="pdf",
+        "Upload PDF", type="pdf",
         on_change=clear_retriever,
-        help="PDF documents only"
+        help="Drop your research paper here"
     )
+
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("⟳  Clear Chat"):
+        if st.button("↺  Clear"):
             st.session_state.messages = []
             st.rerun()
     with col2:
         show_graph = st.checkbox("Graph", value=False)
 
-    if show_graph:
-        pass  # graph drawn below after app compiled
-
-    st.markdown("<div class='side-footer'>Built by DANI TECH ⬡</div>", unsafe_allow_html=True)
+    st.markdown("<div class='side-footer'>✦ Built by Dani Tech</div>", unsafe_allow_html=True)
 
 
-# 6. --- MAIN HEADER ---
+# ── HERO ───────────────────────────────────────────────────────────────────────
+doc_ready = "retriever" in st.session_state
+pill_text = "System Active · Document Loaded" if doc_ready else "System Active · Awaiting Document"
+
+st.markdown(f"""
+<div class='hero'>
+    <div class='hero-eyebrow'>
+        <div class='hero-dot'></div>
+        {pill_text}
+    </div>
+    <div class='hero-title'>Self‑Reflecting<br><em>Agentic RAG</em></div>
+    <div class='hero-desc'>
+        Corrective RAG with hallucination grading — your documents meet real-time web intelligence,
+        producing answers you can trust.
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+
+# ── STAT CARDS ─────────────────────────────────────────────────────────────────
+q_count   = len([m for m in st.session_state.messages if m["role"] == "user"])
+src_label = "PDF + Web" if doc_ready else "Web Only"
+
+st.markdown(f"""
+<div class='cards-row'>
+    <div class='card'>
+        <div class='card-icon'>🧠</div>
+        <div class='card-label'>Model</div>
+        <div class='card-value'>Llama 3.3</div>
+    </div>
+    <div class='card'>
+        <div class='card-icon'>📐</div>
+        <div class='card-label'>Pipeline</div>
+        <div class='card-value'>CRAG</div>
+    </div>
+    <div class='card'>
+        <div class='card-icon'>💬</div>
+        <div class='card-label'>Queries</div>
+        <div class='card-value'>{q_count}</div>
+    </div>
+    <div class='card'>
+        <div class='card-icon'>🌐</div>
+        <div class='card-label'>Source</div>
+        <div class='card-value'>{src_label}</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ── PIPELINE STEPS ─────────────────────────────────────────────────────────────
 st.markdown("""
-<div class='hero-header'>
-    <div class='hero-title'>Agentic <span>Self‑Reflecting</span> RAG</div>
-    <div class='hero-sub'>Corrective RAG · Hallucination Grading · Web Augmentation</div>
-</div>
-""", unsafe_allow_html=True)
-
-# Status pill
-doc_loaded = "retriever" in st.session_state
-pill_text  = "Document Indexed · Ready" if doc_loaded else "Awaiting Document"
-st.markdown(f"""
-<div class='status-pill'>
-    <div class='pulse-dot'></div>
-    {pill_text}
-</div>
-""", unsafe_allow_html=True)
-
-# Stat cards
-msg_count = len([m for m in st.session_state.messages if m["role"] == "user"])
-st.markdown(f"""
-<div class='stat-row'>
-    <div class='stat-card'>
-        <div class='stat-label'>Pipeline</div>
-        <div class='stat-value'>CRAG</div>
-    </div>
-    <div class='stat-card'>
-        <div class='stat-label'>Model</div>
-        <div class='stat-value' style='font-size:0.9rem;margin-top:4px;color:#8892b0'>Llama 3.3 · 70B</div>
-    </div>
-    <div class='stat-card'>
-        <div class='stat-label'>Queries</div>
-        <div class='stat-value'>{msg_count}</div>
-    </div>
-    <div class='stat-card'>
-        <div class='stat-label'>Source</div>
-        <div class='stat-value' style='font-size:0.85rem;margin-top:4px'>{"PDF + Web" if doc_loaded else "Web Only"}</div>
-    </div>
+<div class='pipeline-row'>
+    <div class='pipeline-step'><div class='step-num'>1</div>Retrieve</div>
+    <div class='pipeline-arrow'></div>
+    <div class='pipeline-step'><div class='step-num'>2</div>Grade</div>
+    <div class='pipeline-arrow'></div>
+    <div class='pipeline-step'><div class='step-num'>3</div>Web Search</div>
+    <div class='pipeline-arrow'></div>
+    <div class='pipeline-step'><div class='step-num'>4</div>Generate</div>
 </div>
 """, unsafe_allow_html=True)
 
 
-# 7. --- AGENT LOGIC ---
+# ── AGENT SETUP ────────────────────────────────────────────────────────────────
 if groq_key and tavily_key:
-    os.environ["GROQ_API_KEY"]    = groq_key
-    os.environ["TAVILY_API_KEY"]  = tavily_key
+    os.environ["GROQ_API_KEY"]   = groq_key
+    os.environ["TAVILY_API_KEY"] = tavily_key
     llm        = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
-    # Index PDF
     if uploaded_file and "retriever" not in st.session_state:
-        with st.status("⬡  Indexing Document...", expanded=True) as status:
-            status.write("Parsing PDF pages...")
+        with st.status("✦  Indexing your document…", expanded=True) as status:
             with open("temp.pdf", "wb") as f:
                 f.write(uploaded_file.getbuffer())
             loader = PyPDFLoader("temp.pdf")
             chunks = RecursiveCharacterTextSplitter(
                 chunk_size=800, chunk_overlap=100
             ).split_documents(loader.load())
-            status.write(f"Creating vector store from {len(chunks)} chunks...")
-            collection_name = f"pdf_{int(datetime.now().timestamp())}"
+            status.write(f"Creating embeddings for {len(chunks)} chunks…")
             vectorstore = Chroma.from_documents(
                 documents=chunks,
                 embedding=embeddings,
-                collection_name=collection_name
+                collection_name=f"pdf_{int(datetime.now().timestamp())}"
             )
             st.session_state.retriever = vectorstore.as_retriever()
-            status.update(label=f"✓  Indexed: {uploaded_file.name}", state="complete")
+            status.update(label=f"✦  Ready — {uploaded_file.name}", state="complete")
 
-    # --- LANGGRAPH SETUP ---
     class GraphState(TypedDict):
         question:      str
         generation:    str
@@ -519,56 +591,52 @@ if groq_key and tavily_key:
         if not state["documents"]:
             return {"search_needed": "yes"}
         score = llm.invoke(
-            f"Is context relevant to: {state['question']}? Answer yes/no.\nContext: {state['documents'][0]}"
+            f"Is this context relevant to the question? Answer only yes or no.\n"
+            f"Question: {state['question']}\nContext: {state['documents'][0]}"
         ).content.lower()
         return {"search_needed": "no" if "yes" in score else "yes"}
 
     def web_search(state):
-        search_tool = TavilySearchResults(k=3)
-        results     = search_tool.invoke({"query": state["question"]})
+        results = TavilySearchResults(k=3).invoke({"query": state["question"]})
         return {
             "documents": state["documents"] + [r["content"] for r in results],
             "links":     [r["url"] for r in results]
         }
 
     def generate(state):
-        source = "PDF" if state["search_needed"] == "no" else "Web"
-        res    = llm.invoke(
-            f"Context: {state['documents']}\nQuestion: {state['question']}\nCite source as: {source}"
+        source = "PDF document" if state["search_needed"] == "no" else "web search"
+        res = llm.invoke(
+            f"Answer the question using the context below. Cite your source as: {source}.\n\n"
+            f"Context: {state['documents']}\n\nQuestion: {state['question']}"
         ).content
         return {"generation": res}
 
-    workflow = StateGraph(GraphState)
-    workflow.add_node("retrieve",   retrieve)
-    workflow.add_node("grade",      grade_documents)
-    workflow.add_node("web_search", web_search)
-    workflow.add_node("generate",   generate)
-    workflow.add_edge(START, "retrieve")
-    workflow.add_edge("retrieve", "grade")
-    workflow.add_conditional_edges(
-        "grade",
+    wf = StateGraph(GraphState)
+    wf.add_node("retrieve",   retrieve)
+    wf.add_node("grade",      grade_documents)
+    wf.add_node("web_search", web_search)
+    wf.add_node("generate",   generate)
+    wf.add_edge(START, "retrieve")
+    wf.add_edge("retrieve", "grade")
+    wf.add_conditional_edges("grade",
         lambda x: "web" if x["search_needed"] == "yes" else "gen",
-        {"web": "web_search", "gen": "generate"}
-    )
-    workflow.add_edge("web_search", "generate")
-    workflow.add_edge("generate",   END)
-    app_graph = workflow.compile()
+        {"web": "web_search", "gen": "generate"})
+    wf.add_edge("web_search", "generate")
+    wf.add_edge("generate",   END)
+    agent = wf.compile()
 
     if show_graph:
         with st.sidebar:
-            st.image(app_graph.get_graph().draw_mermaid_png())
+            st.image(agent.get_graph().draw_mermaid_png())
 
-    # Pipeline nodes reference
+    # ── CHAT ───────────────────────────────────────────────────────────────────
     st.markdown("""
-    <div style='margin-bottom:1.5rem'>
-        <span class='node-badge'>⬡ Retrieve</span>
-        <span class='node-badge'>⬡ Grade</span>
-        <span class='node-badge'>⬡ Web Search</span>
-        <span class='node-badge'>⬡ Generate</span>
+    <div class='chat-section-label'>
+        <div class='chat-section-text'>Conversation</div>
+        <div class='chat-section-line'></div>
     </div>
     """, unsafe_allow_html=True)
 
-    # --- CHAT INTERFACE ---
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
@@ -579,47 +647,49 @@ if groq_key and tavily_key:
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            with st.status("⬡  Agent Reasoning…", expanded=True) as status:
+            node_labels = {
+                "retrieve":   "Retrieving relevant passages…",
+                "grade":      "Grading document relevance…",
+                "web_search": "Searching the web…",
+                "generate":   "Composing your answer…",
+            }
+            with st.status("✦  Thinking…", expanded=True) as status:
                 final_state = {}
-                node_labels = {
-                    "retrieve":   "⬡ Retrieve · Searching document chunks",
-                    "grade":      "⬡ Grade   · Evaluating relevance",
-                    "web_search": "⬡ Search  · Querying the web",
-                    "generate":   "⬡ Generate· Synthesizing answer",
-                }
-                for step in app_graph.stream({"question": prompt}):
+                for step in agent.stream({"question": prompt}):
                     for node, output in step.items():
-                        label = node_labels.get(node, f"⬡ {node.replace('_', ' ').title()}")
-                        status.write(label)
+                        status.write(f"→  {node_labels.get(node, node)}")
                         final_state.update(output)
-                status.update(label="✓  Done", state="complete")
+                status.update(label="✦  Done", state="complete")
 
             st.markdown(final_state["generation"])
 
             if final_state.get("links"):
-                with st.expander("⬡  Web References"):
+                with st.expander("✦  Web Sources"):
                     for link in final_state["links"]:
-                        st.write(f"→  {link}")
+                        st.write(f"↗  {link}")
 
-            st.session_state.messages.append(
-                {"role": "assistant", "content": final_state["generation"]}
-            )
+        st.session_state.messages.append(
+            {"role": "assistant", "content": final_state["generation"]}
+        )
 
 else:
     st.markdown("""
     <div style='
-        background: rgba(123,94,167,0.08);
-        border: 1px solid rgba(123,94,167,0.25);
-        border-radius: 14px;
-        padding: 2rem;
-        text-align: center;
-        margin-top: 2rem;
+        background: #fff;
+        border: 1px solid #ede9e3;
+        border-left: 4px solid #d4935a;
+        border-radius: 16px;
+        padding: 2rem 2.2rem;
+        margin: 1rem 0;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
     '>
-        <div style='font-family:"Syne",sans-serif;font-size:1.1rem;color:#8892b0;margin-bottom:0.5rem'>
-            API Keys Required
+        <div style='font-family:"Playfair Display",serif;font-size:1.15rem;color:#3d3530;margin-bottom:6px'>
+            Welcome to Dani Tech RAG
         </div>
-        <div style='font-family:"Space Mono",monospace;font-size:0.7rem;color:#4a5270'>
-            Enter your Groq and Tavily keys in the sidebar to activate the agent
+        <div style='font-family:"DM Sans",sans-serif;font-size:0.83rem;color:#b0a090;line-height:1.65'>
+            Enter your <strong style="color:#d4935a">Groq</strong> and
+            <strong style="color:#d4935a">Tavily</strong> API keys in the sidebar
+            to activate the agent. Optionally upload a PDF to enable document-grounded answers.
         </div>
     </div>
     """, unsafe_allow_html=True)
